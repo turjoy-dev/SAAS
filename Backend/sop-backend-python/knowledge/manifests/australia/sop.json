@@ -1,0 +1,90 @@
+{
+  "country": "australia",
+  "doc_type": "sop",
+  "family": "A",
+  "extends": "core",
+  "required_fact_sheet_fields": [
+    "fullName",
+    "university",
+    "program",
+    "country"
+  ],
+  "goal": "Show academic fit, program fit, and future direction in a formal and credible way.",
+  "structure": [
+    {
+      "section": "introduction",
+      "instruction": "State the academic interest and the problem area the applicant wants to work on."
+    },
+    {
+      "section": "academic_background",
+      "instruction": "Explain relevant study, performance, projects, and research preparation."
+    },
+    {
+      "section": "work_or_research_experience",
+      "instruction": "Show practical experience that supports the chosen course."
+    },
+    {
+      "section": "why_this_course",
+      "instruction": "Explain the course content, specialization, and relevance."
+    },
+    {
+      "section": "why_this_university",
+      "instruction": "Mention specific academic features, faculty, labs, subjects, or facilities."
+    },
+    {
+      "section": "future_plan",
+      "instruction": "Describe realistic short-term and long-term goals."
+    },
+    {
+      "section": "conclusion",
+      "instruction": "Restate intent and readiness."
+    }
+  ],
+  "structure_logic": {
+    "past": "What prepared the applicant.",
+    "present": "Why the applicant needs this course now.",
+    "future": "What the applicant will do after completion."
+  },
+  "red_flags": [
+    "Generic praise of the university",
+    "Copying mission statements from the website",
+    "Overstating achievements",
+    "Weak connection between previous study and chosen course",
+    "Career plans that are unrealistic or immigration-heavy",
+    "Repeating the same idea in multiple paragraphs",
+    "Mentioning every job instead of only relevant ones"
+  ],
+  "banned_phrases": [
+    "dream university",
+    "life-changing opportunity",
+    "I have always wanted this since childhood",
+    "I will do anything to get in",
+    "I want to stay in Australia permanently",
+    "this course is my ticket to Australia",
+    "I have no other option"
+  ],
+  "preferred_language": [
+    "I intend to specialize in...",
+    "My prior study provided a foundation in...",
+    "This course will strengthen my capability to...",
+    "The university's curriculum aligns with my research interests in...",
+    "After completion, I plan to..."
+  ],
+  "paragraph_focus": {
+    "introduction": "One clear motivation.",
+    "academic_background": "Only relevant preparation.",
+    "work_or_research_experience": "Only experience that supports the course.",
+    "why_this_course": "Specific academic alignment.",
+    "why_this_university": "Specific institutional fit.",
+    "future_plan": "Realistic and measurable.",
+    "conclusion": "One concise closing statement."
+  },
+  "quality_checklist": [
+    "The SOP answers why, what, where, and after",
+    "The language is formal and academic",
+    "Every claim is believable and supported",
+    "The document avoids banned phrases",
+    "The university and course are named specifically",
+    "The flow is clean and non-repetitive"
+  ]
+}

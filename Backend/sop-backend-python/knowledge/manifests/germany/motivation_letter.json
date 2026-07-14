@@ -1,0 +1,72 @@
+{
+  "extends": "core",
+  "doc_type": "motivation_letter",
+  "family": "A",
+  "required_fact_sheet_fields": [
+    "fullName",
+    "university",
+    "program",
+    "country"
+  ],
+  "goal": "Explain why this program, why this university, why Germany, and how the program fits your academic and career path.",
+  "structure": [
+    {
+      "section": "1. Opening",
+      "instruction": "State your academic interest and the exact program you want to study."
+    },
+    {
+      "section": "2. Academic Background",
+      "instruction": "Summarize relevant education, performance, projects, and skills."
+    },
+    {
+      "section": "3. Professional or Research Experience",
+      "instruction": "Show practical preparation that supports the program."
+    },
+    {
+      "section": "4. Why This Program",
+      "instruction": "Explain specific modules, specialization, research direction, or academic strengths."
+    },
+    {
+      "section": "5. Why This University",
+      "instruction": "Mention faculty, labs, courses, structure, or reputation only when relevant."
+    },
+    {
+      "section": "6. Why Germany",
+      "instruction": "Explain the academic, research, or professional value of studying in Germany."
+    },
+    {
+      "section": "7. Future Goals",
+      "instruction": "Describe realistic short-term and long-term goals after completion."
+    },
+    {
+      "section": "8. Closing",
+      "instruction": "Restate your motivation briefly and professionally."
+    }
+  ],
+  "structure_rules": [
+    "Be reflective, not dramatic. Be factual, not promotional.",
+    "Do not repeat your CV line by line.",
+    "Focus on fit and preparedness."
+  ],
+  "red_flags": [
+    "Overly emotional statements",
+    "Generic praise of Germany or the university",
+    "Copying content from the university website",
+    "Weak explanation of why this program fits your background",
+    "Immigration-heavy wording",
+    "Unrealistic goals"
+  ],
+  "preferred_language": [
+    "My academic background has prepared me for...",
+    "This program aligns with my interest in...",
+    "The curriculum offers the specialization I need in...",
+    "This university provides the resources relevant to...",
+    "After completing the program, I plan to..."
+  ],
+  "quality_checklist": [
+    "The motivation is specific and university fit is clear",
+    "The Germany rationale is academic and practical",
+    "The tone is formal and reflective",
+    "No banned phrases appear"
+  ]
+}

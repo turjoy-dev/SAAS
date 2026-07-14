@@ -1,0 +1,79 @@
+{
+  "extends": "core",
+  "doc_type": "study_plan",
+  "family": "C",
+  "required_fact_sheet_fields": ["fullName", "university", "program", "country"],
+  "goal": "Explain why you want to study in Korea, what you plan to study, how you will study, and what you will do after completion.",
+  "structure": [
+    {
+      "section": "personal_background",
+      "instruction": "Briefly state your academic background and current situation."
+    },
+    {
+      "section": "why_korea",
+      "instruction": "Explain the academic, research, or professional reason for choosing Korea."
+    },
+    {
+      "section": "why_this_program",
+      "instruction": "State the exact program and the specific academic value it provides."
+    },
+    {
+      "section": "why_this_university",
+      "instruction": "Mention institution-specific strengths, only if relevant and accurate."
+    },
+    {
+      "section": "study_objectives",
+      "instruction": "Describe the subjects, skills, or research focus you plan to pursue."
+    },
+    {
+      "section": "post_study_plan",
+      "instruction": "Explain your realistic career direction after completing the program."
+    },
+    {
+      "section": "closing",
+      "instruction": "Restate your study intent briefly and professionally."
+    }
+  ],
+  "red_flags": [
+    "Saying Korea was chosen mainly for convenience",
+    "Weak link between prior study and planned program",
+    "No clear academic reason for the specific university",
+    "Career plans that are too broad or unrealistic",
+    "Overly emotional or promotional language",
+    "Immigration-focused statements",
+    "Contradictions with transcripts, CV, or financial evidence"
+  ],
+  "banned_phrases": [
+    "I chose Korea because it is easy",
+    "I want to stay in Korea forever",
+    "This is my route to immigration",
+    "I do not know my career plan yet",
+    "Any course in Korea is fine",
+    "This university is my only option",
+    "I am applying just because of the visa"
+  ],
+  "preferred_language": [
+    "My academic background has prepared me for...",
+    "This program aligns with my interest in...",
+    "The curriculum provides the specialization I need in...",
+    "I plan to focus on...",
+    "After completing this program, I intend to..."
+  ],
+  "paragraph_focus": {
+    "personal_background": "One concise summary.",
+    "why_korea": "One clear academic rationale.",
+    "why_this_program": "Specific academic fit.",
+    "why_this_university": "Specific institutional fit.",
+    "study_objectives": "Skills, modules, or research focus.",
+    "post_study_plan": "Realistic and measurable.",
+    "closing": "One short reaffirmation."
+  },
+  "quality_checklist": [
+    "The study plan is specific",
+    "Korea rationale is academic",
+    "Program rationale is clear",
+    "University rationale is accurate",
+    "The future plan is believable",
+    "No banned phrases appear"
+  ]
+}

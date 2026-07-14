@@ -1,0 +1,58 @@
+{
+  "extends": "core",
+  "doc_type": "loe",
+  "family": "D",
+  "required_fact_sheet_fields": ["fullName", "university", "program", "country", "clarification_reason"],
+  "goal": "Explain the study plan, financial picture, gaps, refusals, document issues, or any concern that needs clarification.",
+  "structure": [
+    {
+      "section": "subject_line",
+      "instruction": "State the purpose of the letter clearly."
+    },
+    {
+      "section": "introduction",
+      "instruction": "Identify the application and the reason for the letter."
+    },
+    {
+      "section": "main_explanation",
+      "instruction": "Address the concern directly and chronologically."
+    },
+    {
+      "section": "evidence",
+      "instruction": "Reference documents attached or uploaded."
+    },
+    {
+      "section": "conclusion",
+      "instruction": "Restate that the explanation is complete and consistent."
+    }
+  ],
+  "red_flags": [
+    "Long emotional narratives",
+    "Weak or vague financial explanations",
+    "Inconsistent dates",
+    "Saying the letter is only a formality",
+    "Trying to hide a problem instead of explaining it",
+    "Unsupported claims about bank balances, sponsors, or employment",
+    "Copy-paste wording from templates without personalization"
+  ],
+  "banned_phrases": [
+    "I am sure my visa will be approved",
+    "I have no documents but please consider me",
+    "My sponsor is rich enough",
+    "I cannot explain this properly",
+    "This gap does not matter",
+    "Canada is my only way out"
+  ],
+  "preferred_replacements": {
+    "rich enough": "as detailed in the attached financial proof",
+    "does not matter": "is documented as follows"
+  },
+  "quality_checklist": [
+    "The issue is stated clearly",
+    "The explanation is factual and brief",
+    "The timeline is consistent",
+    "Supporting documents are referenced",
+    "No banned phrases appear",
+    "The tone remains professional"
+  ]
+}

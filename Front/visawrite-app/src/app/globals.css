@@ -1,0 +1,279 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  
+  /* Slate Color Scheme from Visme #49 */
+  --color-background: #f2f5f7;
+  --color-foreground: #2d3538;
+  --color-primary: #698696;
+  --color-primary-container: #e1e8eb;
+  --color-on-primary: #ffffff;
+  --color-secondary: #4DBE55;
+  --color-tertiary: #79ED91;
+  --color-surface: #f2f5f7;
+  --color-surface-dim: #cbd4d9;
+  --color-surface-container-low: #edf1f3;
+  --color-surface-container: #e6ebef;
+  --color-surface-container-high: #dce3e7;
+  --color-surface-container-highest: #d2dce2;
+  --color-outline: #71776D;
+  --color-outline-variant: #BEBEBE;
+  --color-on-surface: #2d3538;
+  --color-on-surface-variant: #5b6468;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(105, 134, 150, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(77, 190, 85, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(121, 237, 145, 0.04) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+
+/* ── Level 1: Neomorphic Molded Cards (Soft UI) ── */
+.glass-card {
+  background: #f2f5f7;
+  border-radius: 24px;
+  box-shadow:
+    9px 9px 20px #cbd4d9,
+    -9px -9px 20px #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-card:hover {
+  box-shadow:
+    14px 14px 28px #b9c4cb,
+    -14px -14px 28px #ffffff;
+  border-color: rgba(255, 255, 255, 0.95);
+}
+
+/* ── Neumorphic Surfaces & Insets ── */
+.neumorphic-surface {
+  background: #f2f5f7;
+  box-shadow:
+    9px 9px 20px #cbd4d9,
+    -9px -9px 20px #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.neumorphic-inset {
+  background: #f2f5f7;
+  box-shadow: 
+    inset 4px 4px 8px #cbd4d9, 
+    inset -4px -4px 8px #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* ── Level 1: Neomorphic Molded Cards ── */
+.neomorphic-card {
+  background: #f2f5f7;
+  border-radius: 24px;
+  box-shadow:
+    9px 9px 20px #cbd4d9,
+    -9px -9px 20px #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.neomorphic-card-hover:hover {
+  box-shadow:
+    14px 14px 28px #b9c4cb,
+    -14px -14px 28px #ffffff;
+  transform: translateY(-4px);
+}
+
+/* ── Level 2: Glassmorphic Floating Overlays ── */
+.glass-panel {
+  background: rgba(242, 245, 247, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 10px 30px -10px rgba(105, 134, 150, 0.15),
+    0 1px 3px rgba(105, 134, 150, 0.05);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Check Gradient (from Stitch) ── */
+.check-gradient {
+  background: linear-gradient(135deg, #698696 0%, #4a6573 100%);
+}
+
+/* ── Perspective Container ── */
+.perspective-container {
+  perspective: 1000px;
+}
+
+/* ── Tilt Card ── */
+.tilt-card {
+  transition: transform 0.3s ease-out;
+  transform-style: preserve-3d;
+}
+
+/* ── Scroll Reveal Animation ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s ease-out;
+}
+.reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Floating Animation ── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* ── Scrollbar Customization ── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f8f9ff;
+}
+::-webkit-scrollbar-thumb {
+  background: #dce9ff;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #cbdcf5;
+}
+
+/* ── Audio Bar Animation ── */
+.audio-bar {
+  display: inline-block;
+  width: 4px;
+  height: 15px;
+  background: #06b6d4;
+  margin: 0 2px;
+  border-radius: 2px;
+  animation: bounce 0.8s ease-in-out infinite alternate;
+}
+@keyframes bounce {
+  10% { height: 5px; }
+  100% { height: 28px; }
+}
+.audio-bar:nth-child(2) { animation-delay: 0.15s; }
+.audio-bar:nth-child(3) { animation-delay: 0.3s; }
+.audio-bar:nth-child(4) { animation-delay: 0.45s; }
+.audio-bar:nth-child(5) { animation-delay: 0.2s; }
+.audio-bar:nth-child(6) { animation-delay: 0.35s; }
+
+/* Global Focus Outline Reset to remove default browser active borders */
+a:focus, button:focus, input:focus, select:focus, textarea:focus {
+  outline: none !important;
+}
+a, button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Entry Fade-In transition */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Full Website Neomorphism (Soft UI) Global Overrides ── */
+input[type="text"], input[type="email"], input[type="date"], select, textarea {
+  background: #f2f5f7 !important;
+  box-shadow: 
+    inset 3px 3px 6px #cbd4d9, 
+    inset -3px -3px 6px #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  outline: none !important;
+}
+input[type="text"]:focus, input[type="email"]:focus, input[type="date"]:focus, select:focus, textarea:focus {
+  border-color: rgba(105, 134, 150, 0.4) !important;
+  box-shadow: 
+    inset 1px 1px 3px #cbd4d9, 
+    inset -1px -1px 3px #ffffff !important;
+}
+
+/* Primary Neomorphic Buttons */
+button.bg-\[\#1e3a8a\]:not(.border) {
+  background: linear-gradient(145deg, #7190a2, #5f7a89) !important;
+  box-shadow: 
+    6px 6px 15px #cbd4d9, 
+    -6px -6px 15px #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  color: #ffffff !important;
+}
+button.bg-\[\#1e3a8a\]:not(.border):hover {
+  background: linear-gradient(145deg, #5f7a89, #7190a2) !important;
+  box-shadow: 
+    8px 8px 18px #b9c4cb, 
+    -8px -8px 18px #ffffff !important;
+  transform: translateY(-1px);
+}
+button.bg-\[\#1e3a8a\]:not(.border):active {
+  box-shadow: 
+    inset 3px 3px 6px rgba(0, 0, 0, 0.15) !important;
+  transform: translateY(0);
+}
+
+/* Secondary Neomorphic Buttons */
+button.glass-card, button.bg-\[\#f1f5f9\] {
+  background: #f2f5f7 !important;
+  box-shadow: 
+    5px 5px 10px #cbd4d9, 
+    -5px -5px 10px #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  color: #698696 !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+button.glass-card:hover, button.bg-\[\#f1f5f9\]:hover {
+  box-shadow: 
+    7px 7px 14px #b9c4cb, 
+    -7px -7px 14px #ffffff !important;
+  transform: translateY(-1px);
+}
+button.glass-card:active, button.bg-\[\#f1f5f9\]:active {
+  box-shadow: 
+    inset 2px 2px 5px #cbd4d9, 
+    inset -2px -2px 5px #ffffff !important;
+  transform: translateY(0);
+}
+
+/* ── Morphing Background Fluid Blobs Keyframes ── */
+@keyframes morphBlob {
+  0%, 100% { 
+    border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%; 
+    transform: translate(0, 0) scale(1) rotate(0deg); 
+  }
+  33% { 
+    border-radius: 70% 30% 52% 48% / 60% 40% 60% 40%; 
+    transform: translate(40px, -60px) scale(1.15) rotate(120deg); 
+  }
+  66% { 
+    border-radius: 28% 72% 38% 62% / 35% 65% 35% 65%; 
+    transform: translate(-30px, 40px) scale(0.9) rotate(240deg); 
+  }
+}
+
+.animate-blob-slow {
+  animation: morphBlob 20s ease-in-out infinite alternate;
+}
+
+.animate-blob-fast {
+  animation: morphBlob 12s ease-in-out infinite alternate-reverse;
+}
+
+

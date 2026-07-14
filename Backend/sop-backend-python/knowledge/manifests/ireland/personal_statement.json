@@ -1,0 +1,59 @@
+{
+  "extends": "core",
+  "doc_type": "personal_statement",
+  "family": "A",
+  "required_fact_sheet_fields": ["fullName", "university", "program", "country"],
+  "goal": "Present your academic interest, motivation, preparation, and suitability in a personal but controlled way.",
+  "structure": [
+    {
+      "section": "opening",
+      "instruction": "State your academic interest and why it matters to you."
+    },
+    {
+      "section": "academic_development",
+      "instruction": "Explain how your studies shaped your interest and capability."
+    },
+    {
+      "section": "relevant_experience",
+      "instruction": "Include projects, work, research, leadership, or volunteering if relevant."
+    },
+    {
+      "section": "motivation",
+      "instruction": "Explain what shaped your interest in the field."
+    },
+    {
+      "section": "course_and_institution_fit",
+      "instruction": "Show why this exact course and institution support your goals."
+    },
+    {
+      "section": "future_direction",
+      "instruction": "Describe what you want to do after completing the course."
+    }
+  ],
+  "red_flags": [
+    "Too casual or conversational",
+    "Too emotional or sentimental",
+    "Oversharing irrelevant personal details",
+    "Generic interest statements without proof",
+    "Repeating the SOP word-for-word",
+    "Immigration-focused wording",
+    "Claims that cannot be verified"
+  ],
+  "banned_phrases": [
+    "I was born to do this",
+    "this is my lifelong dream",
+    "I just love it so much",
+    "Ireland is my only destination",
+    "I want to stay there permanently",
+    "I have no academic reason",
+    "this statement is just for the visa"
+  ],
+  "quality_checklist": [
+    "The tone is personal but formal",
+    "The statement shows development, not just desire",
+    "The institution and course fit is specific",
+    "The writing is original and not copied from the SOP",
+    "No banned phrases appear",
+    "The content is supported by the rest of the application"
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  "status": "superseded",
+  "message": "This legacy config file has been fully superseded by the new manifest-driven orchestrator and knowledge/manifests/ files."
+}

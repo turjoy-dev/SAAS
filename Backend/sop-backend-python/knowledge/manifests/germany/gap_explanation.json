@@ -1,0 +1,41 @@
+{
+  "extends": "core",
+  "doc_type": "gap_explanation",
+  "family": "D",
+  "required_fact_sheet_fields": [
+    "applicant_name",
+    "gap_start",
+    "gap_end",
+    "gap_reason"
+  ],
+  "goal": "Explain study or employment gaps briefly, honestly, and with evidence.",
+  "structure": [
+    {
+      "section": "Dates & Reason",
+      "instruction": "State the exact gap period (start date to end date) and give one short, clear reason."
+    },
+    {
+      "section": "Activity & Outcome",
+      "instruction": "Describe what you did during that period and show how it improved your readiness/skills."
+    },
+    {
+      "section": "Evidence",
+      "instruction": "Mention the supporting documents (certificates, records) attached to support this explanation."
+    }
+  ],
+  "structure_rules": [
+    "Keep it brief and factual. Do not overexplain or use defensive/emotional language."
+  ],
+  "red_flags": [
+    "A gap with no documentation",
+    "A gap that conflicts with CV or transcript dates",
+    "Vague explanations like 'personal reasons'",
+    "A long story that does not answer the concern"
+  ],
+  "quality_checklist": [
+    "Dates are exact and match CV/transcripts",
+    "Reason is short and clear",
+    "Activity is specific and links to an outcome",
+    "Proof is explicitly mentioned"
+  ]
+}

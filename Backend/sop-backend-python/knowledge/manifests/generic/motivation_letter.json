@@ -1,0 +1,6 @@
+{
+  "country": "generic",
+  "doc_type": "motivation_letter",
+  "family": "D",
+  "required_fact_sheet_fields": ["fullName", "university", "program", "country"]
+}

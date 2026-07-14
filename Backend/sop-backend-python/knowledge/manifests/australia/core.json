@@ -1,0 +1,74 @@
+{
+  "country": "australia",
+  "language_rules": {
+    "register": "Formal academic and professional writing using Australian/British English (e.g. modernise, programme, organisation).",
+    "principles": [
+      "Use first-person active voice naturally.",
+      "Avoid cliché openings.",
+      "Ensure every claim is backed by a specific detail from the fact sheet.",
+      "Prefer concrete facts over emotional claims."
+    ]
+  },
+  "banned_phrases": [
+    "Australia is a multicultural country",
+    "Land of opportunity",
+    "Experience Australian culture",
+    "I will abide by all visa conditions",
+    "I promise to return to Bangladesh",
+    "I can financially support myself",
+    "sufficient funds",
+    "my family will help me",
+    "I will manage my expenses",
+    "permanent residence",
+    "PR",
+    "migrate permanently",
+    "settle in Australia",
+    "move to Australia forever",
+    "just want a better life",
+    "better opportunities only",
+    "I need visa approval",
+    "I want to escape my country",
+    "any course is fine",
+    "this university was my only option",
+    "furthermore", "moreover", "leverage", "synergy", "delve", "tapestry", "testament", "pivotal", "robust",
+    "embarked", "transformative", "holistic", "invaluable", "honed", "passionate about", "needless to say",
+    "I am excited to", "it is worth noting", "in today's world", "at the end of the day", "since childhood",
+    "always dreamed of", "journey", "realm", "foster", "cultivate", "empower", "equip", "dynamic",
+    "results-driven", "dedicated", "highly motivated", "strong work ethic", "excellent communication skills",
+    "breathtaking", "incredible", "amazing", "wonderful",
+    "subsequently", "in addition", "to summarize", "in conclusion", "having said that", "in light of the above",
+    "this experience led me to", "this motivated me to"
+  ],
+  "preferred_replacements": {
+    "I want PR": "My goal is to build a professional career after completing the program.",
+    "better opportunities only": "This program aligns with my academic and career development goals.",
+    "this university was my only option": "This university best matches my academic interests and course requirements."
+  },
+  "financial_rules": {
+    "living_cost_primary": 29710,
+    "living_cost_spouse": 10394,
+    "living_cost_child": 4449,
+    "visa_fee": 2000,
+    "ielts_minimum": "6.0 overall, minimum 5.5 in each band"
+  },
+  "bangladesh_evidence_level_3_protocol": {
+    "default_documentation_burden": "Evidence Level 3 (Highest Scrutiny) assumed by default for Bangladesh applicants.",
+    "seasoning_scrutiny": "Mandatory 3 to 6 months of bank statement history must be referenced in GS Response 2 and SOP Paragraph 7.",
+    "deposit_screening_question": "Any large/irregular deposits in the last 6 months must be declared and documented for source of funds verification.",
+    "processing_timeframe": "8 to 12 weeks processing window",
+    "risk_neutralization_action": "Treat evidence anchoring as mandatory for all claims (no undocumented assertions allowed)."
+  },
+  "red_flags": [
+    "Institution or provider is not CRICOS registered",
+    "Any GS response exceeds the 150-word limit",
+    "Financial evidence is below the required AUD 29,710/yr benchmark plus dependent costs",
+    "Sudden large deposits without 3 to 6 months seasoning history",
+    "Missing relationship documents (birth/marriage certs) for sponsors",
+    "IELTS overall score below 6.0 or any band below 5.5",
+    "Study gap exceeding 6 months without documented explanation",
+    "Vague, generic, or lifestyle-focused career plans",
+    "Undisclosed prior visa refusals from any country",
+    "Large/irregular deposits in the last 6 months not explained with source verification",
+    "Lack of 3 to 6 months bank statement history language in GS Response 2 or SOP Paragraph 7"
+  ]
+}

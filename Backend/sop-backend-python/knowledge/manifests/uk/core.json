@@ -1,0 +1,34 @@
+{
+  "country": "uk",
+  "language_rules": {
+    "register": "Formal, clear, and specific British English (e.g. programme, organise).",
+    "principles": [
+      "Keep every claim consistent with the CAS, transcripts, CV, finances, and supporting evidence.",
+      "Write to reduce doubt, not to impress.",
+      "Do not add facts that cannot be proven.",
+      "Keep the document tailored to the exact institution and course."
+    ]
+  },
+  "banned_phrases": [
+    "I want to settle in the UK permanently",
+    "I want PR",
+    "I chose the UK for migration",
+    "This course is only for visa purposes",
+    "Any university in the UK is fine",
+    "I have no specific academic reason",
+    "My sponsor will cover everything without proof",
+    "furthermore", "moreover", "leverage", "synergy", "delve", "tapestry", "testament", "pivotal", "robust",
+    "embarked", "transformative", "holistic", "invaluable", "honed", "passionate about", "needless to say",
+    "I am excited to", "it is worth noting", "in today's world", "at the end of the day", "since childhood",
+    "always dreamed of", "journey", "realm", "foster", "cultivate", "empower", "equip", "dynamic",
+    "results-driven", "dedicated", "highly motivated", "strong work ethic", "excellent communication skills",
+    "breathtaking", "incredible", "amazing", "wonderful",
+    "subsequently", "in addition", "to summarize", "in conclusion", "having said that", "in light of the above",
+    "this experience led me to", "this motivated me to"
+  ],
+  "preferred_replacements": {
+    "I want PR": "I plan to use this qualification to develop my career after graduation.",
+    "any university in the UK is fine": "This university offers the specialization I need.",
+    "for visa purposes": "for academic and professional development."
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "extends": "core",
+  "doc_type": "gs",
+  "family": "B",
+  "required_fact_sheet_fields": [
+    "fullName",
+    "university",
+    "program",
+    "country",
+    "sponsorType",
+    "careerGoals",
+    "whyCourse",
+    "homeTies"
+  ],
+  "goal": "Generate 4 Genuine Student (GS) Responses for Australian Subclass 500 Visa. Each answer must be strictly under 150 words and evidence-backed.",
+  "structure": [
+    {
+      "section": "Question 1: Current circumstances (family, community, employment, assets)",
+      "instruction": "Give details of your current circumstances, including ties to family, community, employment, and assets."
+    },
+    {
+      "section": "Question 2: Choice of course and provider in Australia",
+      "instruction": "Explain why you wish to study this course in Australia with this particular education provider (including your understanding of the requirements of the course, and study and living in Australia)."
+    },
+    {
+      "section": "Question 3: Value of course to future career opportunities",
+      "instruction": "Explain how completing this course will be of benefit to you, including your career plan back in your home country."
+    },
+    {
+      "section": "Question 4: Other relevant information",
+      "instruction": "Give details of any other relevant information, such as your immigration history, gaps in study, or visa compliance."
+    }
+  ],
+  "structure_rules": [
+    "Each response must be strictly under 150 words.",
+    "Formulate answers based strictly on facts present in the applicant fact-sheet.",
+    "Reference 3 to 6 months seasoned savings account details in Response 2."
+  ],
+  "red_flags": [
+    "Any single response exceeding 150 words",
+    "Vague, generic, or lifestyle-focused career plans",
+    "Undisclosed prior visa refusals or study gaps",
+    "Lack of reference to 3 to 6 months seasoned bank statement history in Response 2"
+  ],
+  "quality_checklist": [
+    "Each of the 4 answers is under 150 words",
+    "All claims are consistent with the applicant fact-sheet",
+    "Banned phrases are avoided entirely"
+  ]
+}

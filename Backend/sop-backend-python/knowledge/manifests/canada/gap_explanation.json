@@ -1,0 +1,44 @@
+{
+  "extends": "core",
+  "doc_type": "gap_explanation",
+  "family": "D",
+  "required_fact_sheet_fields": ["fullName", "gap_start", "gap_end", "gap_reason"],
+  "goal": "Explain the gap briefly, honestly, and with proof.",
+  "structure": [
+    {
+      "section": "gap_period",
+      "instruction": "State the exact gap period start and end dates."
+    },
+    {
+      "section": "reason",
+      "instruction": "Provide a clear and concise reason for the gap."
+    },
+    {
+      "section": "activity",
+      "instruction": "Describe the activities undertaken during the gap period."
+    },
+    {
+      "section": "outcome",
+      "instruction": "Explain how this period improved preparation or readiness."
+    },
+    {
+      "section": "evidence",
+      "instruction": "Reference the supporting documents attached."
+    }
+  ],
+  "red_flags": [
+    "A gap with no documentary support",
+    "A gap that conflicts with CV or transcript dates",
+    "A vague explanation like 'personal reasons'",
+    "A long story that does not answer the real concern",
+    "A gap that hides poor academic performance"
+  ],
+  "quality_checklist": [
+    "Dates are exact",
+    "Reason is short and clear",
+    "Activity is specific",
+    "Outcome is stated",
+    "Proof is attached",
+    "The explanation matches the rest of the application"
+  ]
+}

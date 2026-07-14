@@ -1,0 +1,78 @@
+{
+  "extends": "core",
+  "doc_type": "sop",
+  "family": "A",
+  "required_fact_sheet_fields": ["fullName", "university", "program", "country"],
+  "goal": "Show academic preparedness, program fit, and realistic career direction.",
+  "structure": [
+    {
+      "section": "introduction",
+      "instruction": "State your academic interest and the exact program you want to study."
+    },
+    {
+      "section": "academic_background",
+      "instruction": "Summarize relevant education, performance, projects, and skills."
+    },
+    {
+      "section": "work_or_research_experience",
+      "instruction": "Show experience that supports the program."
+    },
+    {
+      "section": "why_this_course",
+      "instruction": "Explain specific modules, specialization, or academic strengths."
+    },
+    {
+      "section": "why_this_university",
+      "instruction": "Mention faculty, facilities, structure, or academic resources."
+    },
+    {
+      "section": "future_plan",
+      "instruction": "Describe short-term and long-term goals after completion."
+    },
+    {
+      "section": "conclusion",
+      "instruction": "Restate your intent briefly."
+    }
+  ],
+  "red_flags": [
+    "Vague course motivation",
+    "Copying university website wording",
+    "Unrealistic career plans",
+    "Immigration-focused wording",
+    "Overexplaining personal life",
+    "Writing too broadly instead of showing fit",
+    "Conflicting dates or achievements"
+  ],
+  "banned_phrases": [
+    "dream country",
+    "life-changing opportunity",
+    "I have always wanted to go to Ireland",
+    "I will do anything to get admitted",
+    "this is my way to stay in Ireland",
+    "the visa is my main concern"
+  ],
+  "preferred_language": [
+    "My background in X has prepared me for...",
+    "This course aligns with my interest in...",
+    "The curriculum offers the specialization I need in...",
+    "I intend to develop expertise in...",
+    "After completing this course, I plan to..."
+  ],
+  "paragraph_focus": {
+    "introduction": "One clear motivation.",
+    "academic_background": "Only relevant preparation.",
+    "work_or_research_experience": "Only relevant work or research.",
+    "why_this_course": "Specific academic alignment.",
+    "why_this_university": "Specific institutional fit.",
+    "future_plan": "Realistic and measurable.",
+    "conclusion": "Concise reaffirmation."
+  },
+  "quality_checklist": [
+    "The SOP is specific",
+    "The writing is formal",
+    "The course and institution are named clearly",
+    "The future plan is believable",
+    "No banned phrases appear",
+    "The document matches the rest of the application"
+  ]
+}
