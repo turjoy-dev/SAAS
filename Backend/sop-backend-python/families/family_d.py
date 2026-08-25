@@ -1,28 +1,82 @@
 """
 Family D — issue-explanation (LOE, Gap Explanation).
 
-Pipeline: Draft -> Critic -> Relint -> done. No Edit stage — these
-documents are short enough that a 3rd LLM call isn't justified by the
-document's complexity. If the critic flags something, it's logged for
-human review, not auto-corrected. See RULES.md section 2.
+Pipeline: Draft -> Critic -> Relint -> Humanize -> done.
+Skipping the Edit stage to optimize latency/costs and flag failures directly for human review.
 """
 
 from llm import groq_client, gemini_client
+from knowledge.groq_client import GenerationUnavailableError
 from utils.relint import relint
+from utils.humanizer import humanize
 
 
 def run(manifest: dict, fact_sheet: dict) -> dict:
-    draft_text = groq_client.draft(manifest, fact_sheet)
-    critic_result = gemini_client.critique(manifest, draft_text, fact_sheet)
-    residual_flags = relint(draft_text, manifest)
+    try:
+        draft_text, draft_model = groq_client.draft(manifest, fact_sheet)
+    except GenerationUnavailableError as e:
+        return {
+            "text": None,
+            "family": "D",
+            "llm_calls": 0,
+            "needs_human_review": True,
+            "generation_failed": True,
+            "failure_reason": str(e),
+            "model_used": {"draft": "none", "critic": "none", "edit": "none", "humanizer": "none"},
+        }
+    
+    # Run cheap relint first before the paid Gemini Critic call to fail cheap
+    draft_flags = relint(draft_text, manifest)
+    if draft_flags:
+        critic_result = {
+            "score": 50,
+            "flags": [f"Banned phrase detected in draft: {p}" for p in draft_flags],
+            "passed": False,
+            "model_used": "local_relint_precheck",
+            "critic_type": "precheck_only"
+        }
+    else:
+        critic_result = gemini_client.critique(manifest, draft_text, fact_sheet)
+        critic_result["critic_type"] = "llm_judged"
+    
+    final_text = draft_text
+    edit_count = 0
+    edit_model = "none"
+    pass_threshold = 82
+    
+    # Run the humanizer to improve sentence variety and natural tone
+    final_text, humanizer_model = humanize(final_text, manifest)
+    
+    # Hedging phrase relint check
+    from knowledge.relint import detect_hedging
+    if detect_hedging(final_text):
+        final_text, humanizer_model = humanize(final_text, manifest, hedging_pass=True)
+        
+    residual_flags = relint(final_text, manifest)
+    post_humanize_hedges = detect_hedging(final_text)
+    if post_humanize_hedges:
+        for h in post_humanize_hedges:
+            flag_msg = f"Hedging phrase present in final output: '{h}'"
+            if flag_msg not in residual_flags:
+                residual_flags.append(flag_msg)
+
+    hit_threshold = critic_result["score"] >= pass_threshold and critic_result["critic_type"] == "llm_judged"
 
     return {
-        "text": draft_text,
+        "text": final_text,
         "family": "D",
         "llm_calls": 2,
         "critic_score": critic_result["score"],
-        "critic_flags": critic_result["flags"],
+        "critic_type": critic_result["critic_type"],
+        "critic_flags": critic_result.get("flags", []),
         "residual_flags": residual_flags,
-        "edited": False,
-        "needs_human_review": (not critic_result["passed"]) or bool(residual_flags),
+        "edit_loops_used": edit_count,
+        "hit_threshold": hit_threshold,
+        "needs_human_review": bool(residual_flags) or not hit_threshold,
+        "model_used": {
+            "draft": draft_model,
+            "critic": critic_result["model_used"],
+            "edit": edit_model,
+            "humanizer": humanizer_model
+        }
     }

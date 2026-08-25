@@ -2,6 +2,7 @@
   "extends": "core",
   "doc_type": "study_plan",
   "family": "C",
+  "structural_variants": ["skeleton_a", "skeleton_b", "skeleton_c"],
   "required_fact_sheet_fields": ["fullName", "university", "program", "country"],
   "goal": "Explain why you want to study in Korea, what you plan to study, how you will study, and what you will do after completion.",
   "structure": [

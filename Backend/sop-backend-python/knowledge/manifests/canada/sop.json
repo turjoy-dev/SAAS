@@ -2,6 +2,7 @@
   "extends": "core",
   "doc_type": "sop",
   "family": "A",
+  "structural_variants": ["skeleton_a", "skeleton_b", "skeleton_c"],
   "required_fact_sheet_fields": ["fullName", "university", "program", "country"],
   "goal": "Show academic fit, program relevance, and a credible future path.",
   "structure": [

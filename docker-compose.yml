@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./Backend/sop-backend-python
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./Backend/sop-backend-python:/app
+    env_file:
+      - ./Backend/sop-backend-python/.env
+    environment:
+      - MANIFEST_ROOT=/app/knowledge/manifests
+
+  frontend:
+    build:
+      context: ./Front/visawrite-app
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./Front/visawrite-app:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - PORT=3000
+      - NEXT_PUBLIC_API_URL=http://localhost:5000
+    depends_on:
+      - backend

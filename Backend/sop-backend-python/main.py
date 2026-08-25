@@ -1,14 +1,13 @@
 import os
 from pathlib import Path
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import traceback
 import uuid
 from datetime import datetime, timezone
 import sentry_sdk
-from sentry_sdk.integrations.fastapi import FastAPIIntegration
 from dotenv import load_dotenv
 
 # Load env variables
@@ -18,16 +17,20 @@ if not env_path.exists():
 load_dotenv(dotenv_path=env_path)
 
 from app.db.supabase_client import get_supabase as get_supabase_client
-from app.routes import sop, dashboard
+from app.routes import sop, dashboard, applicants, admin, coupons
+from app.auth.dependencies import require_role
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+from app.limiter import limiter
 
 # Initialize Sentry/Bugsink error tracking
 BUGSINK_DSN = os.getenv("BUGSINK_DSN") or os.getenv("SENTRY_DSN")
 if BUGSINK_DSN:
     sentry_sdk.init(
         dsn=BUGSINK_DSN,
-        integrations=[FastAPIIntegration()],
         traces_sample_rate=1.0,
     )
+
 
 app = FastAPI(
     title="VisaWrite SOP Backend (FastAPI)",
@@ -35,17 +38,59 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Attach slowapi limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # CORS configurations
+from app.config import IS_PRODUCTION
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
+if IS_PRODUCTION and not allowed_origins_env:
+    raise RuntimeError("CRITICAL CONFIG ERROR: ALLOWED_ORIGINS environment variable must be set in production mode.")
+
+if allowed_origins_env:
+    origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+else:
+    origins = ["http://localhost:3000", "http://localhost:5000", "http://127.0.0.1:3000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust in production to match your frontend domain
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# 5 MB Request Body Size Limit Middleware (DoS prevention)
+MAX_REQUEST_SIZE_BYTES = 5 * 1024 * 1024
+
+@app.middleware("http")
+async def limit_payload_size_middleware(request: Request, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_REQUEST_SIZE_BYTES:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": "Payload too large. Maximum allowed size is 5 MB."}
+                )
+        except ValueError:
+            pass
+    return await call_next(request)
+
 app.include_router(sop.router, prefix="/sop", tags=["sop"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
+app.include_router(applicants.router, prefix="/applicants", tags=["applicants"])
+app.include_router(admin.router, prefix="/admin", tags=["admin"])
+app.include_router(coupons.router, prefix="/coupons", tags=["coupons"])
+
+@app.on_event("startup")
+def startup_health_checks():
+    from app import config
+    if not config.GROQ_API_KEY and not config.GEMINI_API_KEY:
+        print("⚠️ WARNING: Neither GROQ_API_KEY nor GEMINI_API_KEY is configured. LLM services will run in mock mode.")
+    if not config.GEMINI_API_KEY:
+        print("⚠️ WARNING: GEMINI_API_KEY is missing. Async text-embedding-004 deduplication vectors will be disabled.")
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -54,19 +99,20 @@ async def global_exception_handler(request: Request, exc: Exception):
 
     try:
         supabase = get_supabase_client()
-        supabase.table("generation_errors").insert({
-            # NOTE: table has no "generation_id" value available at this point
-            # (a request-level error may happen before any generation exists).
-            # If generation_id is NOT NULL in the DB, this insert will still fail —
-            # verify nullability and ALTER TABLE if needed.
-            "stage": str(request.url.path),          # was "endpoint" — column doesn't exist
-            "error_detail": str(exc)[:2000],           # was "error_message" — column doesn't exist
-            "raw_payload": {                           # was "traceback" — column doesn't exist; folded into jsonb
+        error_row = {
+            "stage": str(request.url.path),
+            "error_detail": str(exc)[:2000],
+            "raw_payload": {
                 "error_id": error_id,
                 "traceback": tb[:5000],
             },
             "created_at": datetime.now(timezone.utc).isoformat(),
-        }).execute()
+        }
+        # Propagate generation_id from the route if available (set via request.state)
+        gen_id = getattr(request.state, "generation_id", None)
+        if gen_id:
+            error_row["generation_id"] = gen_id
+        supabase.table("generation_errors").insert(error_row).execute()
     except Exception:
         print(f"[CRITICAL] Failed to log error {error_id}: {tb}")
 
@@ -74,10 +120,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"error": "Internal server error", "error_id": error_id},
     )
-
-@app.get("/api/test-error")
-async def trigger_error():
-    division_by_zero = 1 / 0
 
 @app.get("/health")
 async def health():

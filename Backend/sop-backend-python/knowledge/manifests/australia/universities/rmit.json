@@ -1,0 +1,48 @@
+{
+  "university": "RMIT University",
+  "template_confirmed": true,
+  "content_status": "verified",
+  "verified_date": "2026-07-16",
+  "extends": "australia/gs.json",
+  "override_type": "unique_branded_template",
+  "doc_type": "gs",
+  "sop_required": true,
+  "notes": "RMIT publishes its own 'Genuine Student Requirement Statement of Purpose' PDF with distinct sections/instructions, not the DHA-generic category set. Source PDF should be re-fetched and diffed periodically — confirm no 2026 revision.",
+  "sources": [
+    "web:11 RMIT GS/SOP PDF (2026-03-15 update)",
+    "web:24 DHA evidence methodology (2026-07-12)"
+  ],
+  "action_needed": "Resolved: RMIT Genuine Student SOP structure harvested from official RMIT template 2026-07-16",
+  "structure": [
+    {
+      "section": "personal_background",
+      "instruction": "Briefly describe your personal and family background. Declare if you have any family members living in Australia, their relationship to you, and their visa type.",
+      "word_limit": 100
+    },
+    {
+      "section": "family_background",
+      "instruction": "Provide details of your spouse and children if applicable, including spouse's highest qualification and occupation, whether they accompany you, and your awareness of dependents' visa costs and conditions.",
+      "word_limit": 200
+    },
+    {
+      "section": "education_employment_background",
+      "instruction": "Explain your choice of program, your research/knowledge of course and tuition costs, and provide a clear justification if changing career path from your previous studies.",
+      "word_limit": 150
+    },
+    {
+      "section": "study_gaps_immigration_history",
+      "instruction": "Explain any gaps in your education or employment history, and detail your prior immigration history including visa grants or refusals for Australia or other countries.",
+      "word_limit": 150
+    },
+    {
+      "section": "australia_rmit_choice",
+      "instruction": "Justify why you chose to study in Australia over your home country, and detail your institutional research explaining why you selected RMIT University specifically.",
+      "word_limit": 150
+    },
+    {
+      "section": "career_goals",
+      "instruction": "Outline your long-term career objectives, post-study plans, and expected salary/promotion benefits in your home country upon completing this RMIT qualification.",
+      "word_limit": 150
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "university": "UNSW Sydney",
+  "template_confirmed": true,
+  "content_status": "verified",
+  "verified_date": "2026-07-16",
+  "extends": "australia/gs.json",
+  "override_type": "standard_dha_gs",
+  "doc_type": "gs",
+  "sop_required": true,
+  "notes": "UNSW Sydney uses the standard DHA 4-question framework (150 words max per answer) inside its branded 'Genuine Student (GS) Declaration' form. No unique structure override required.",
+  "sources": [
+    "web:13 UNSW GS Assessment Guide (2026-04-01)",
+    "web:18 UNSW India/Pakistan GS Financial Declaration PDF"
+  ],
+  "structure": [
+    {
+      "section": "current_circumstances",
+      "instruction": "Detail your ties to your home country, including family, community, employment, and economic circumstances.",
+      "word_limit": 150
+    },
+    {
+      "section": "course_provider_motivation",
+      "instruction": "Detail why you wish to study this specific course at UNSW, including your understanding of program requirements and why you chose UNSW Sydney over other institutions.",
+      "word_limit": 150
+    },
+    {
+      "section": "future_benefit",
+      "instruction": "Explain how completing this program will benefit your future career, including employment prospects and salary expectations in your home country.",
+      "word_limit": 150
+    },
+    {
+      "section": "additional_information",
+      "instruction": "Provide any other relevant details regarding your academic history, study gaps, or circumstances that support your application.",
+      "word_limit": 150
+    }
+  ]
+}

@@ -3,6 +3,7 @@
   "doc_type": "sop",
   "family": "A",
   "extends": "core",
+  "structural_variants": ["skeleton_a", "skeleton_b", "skeleton_c"],
   "required_fact_sheet_fields": [
     "fullName",
     "university",

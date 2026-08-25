@@ -18,10 +18,13 @@ from functools import lru_cache
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
-# .env lives at Pr-01/.env — two levels up from this file
-# (Pr-01/Backend/sop-backend-python/app/db/supabase_client.py)
-env_path = Path(__file__).resolve().parents[4] / ".env"
-load_dotenv(dotenv_path=env_path)
+# Load .env from backend root and workspace root
+env_backend = Path(__file__).resolve().parents[2] / ".env"
+env_root = Path(__file__).resolve().parents[4] / ".env"
+if env_root.exists():
+    load_dotenv(dotenv_path=env_root)
+if env_backend.exists():
+    load_dotenv(dotenv_path=env_backend, override=True)
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")

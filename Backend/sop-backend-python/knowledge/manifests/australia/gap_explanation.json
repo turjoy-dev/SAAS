@@ -2,5 +2,5 @@
   "country": "australia",
   "doc_type": "gap_explanation",
   "family": "D",
-  "required_fact_sheet_fields": ["applicant_name", "gap_start", "gap_end", "gap_reason"]
+  "required_fact_sheet_fields": ["fullName", "gap_start", "gap_end", "gap_reason"]
 }

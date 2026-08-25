@@ -58,6 +58,20 @@
     "processing_timeframe": "8 to 12 weeks processing window",
     "risk_neutralization_action": "Treat evidence anchoring as mandatory for all claims (no undocumented assertions allowed)."
   },
+  "evidence_level": {
+    "value": 3,
+    "effective_date": "2026-01-08",
+    "prior_value": 1,
+    "verified_date": "2026-07-15",
+    "source": "DHA Country Evidence Level update, 8 Jan 2026 (multi-source corroborated)",
+    "revalidate_before_release": true,
+    "content_impact": [
+      "full_financial_evidence_required",
+      "3plus_months_bank_statements",
+      "source_of_funds_documentation",
+      "stronger_academic_document_verification_language"
+    ]
+  },
   "red_flags": [
     "Institution or provider is not CRICOS registered",
     "Any GS response exceeds the 150-word limit",

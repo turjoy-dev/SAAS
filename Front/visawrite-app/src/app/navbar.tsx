@@ -21,8 +21,8 @@ export default function Navbar() {
         href="/"
         className={`transition-colors text-sm tracking-wide pb-1 ${
           pathname === "/"
-            ? "text-[#1e3a8a] border-b-2 border-[#1e3a8a] font-bold"
-            : "text-[#444651] hover:text-[#1e3a8a]"
+            ? "text-[#3B82F6] border-b-2 border-[#3B82F6] font-bold"
+            : "text-[#9CA3AF] hover:text-[#F9FAFB]"
         }`}
       >
         Solutions
@@ -31,8 +31,8 @@ export default function Navbar() {
         href="/ai-writer"
         className={`transition-colors text-sm tracking-wide pb-1 ${
           isWriterActive
-            ? "text-[#1e3a8a] border-b-2 border-[#1e3a8a] font-bold"
-            : "text-[#444651] hover:text-[#1e3a8a]"
+            ? "text-[#3B82F6] border-b-2 border-[#3B82F6] font-bold"
+            : "text-[#9CA3AF] hover:text-[#F9FAFB]"
         }`}
       >
         AI Writer
@@ -41,8 +41,8 @@ export default function Navbar() {
         href="/dashboard"
         className={`transition-colors text-sm tracking-wide pb-1 ${
           pathname === "/dashboard"
-            ? "text-[#1e3a8a] border-b-2 border-[#1e3a8a] font-bold"
-            : "text-[#444651] hover:text-[#1e3a8a]"
+            ? "text-[#3B82F6] border-b-2 border-[#3B82F6] font-bold"
+            : "text-[#9CA3AF] hover:text-[#F9FAFB]"
         }`}
       >
         Dashboard

@@ -1,0 +1,26 @@
+# Python build artifacts
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Local environment & secrets
+.env
+.env.*
+.venv/
+venv/
+
+# Local runtime artifacts
+scratch/
+full_output.txt
+payload.json
+daily_llm_budget.json
+
+# Version control
+.git
+.gitignore
+
+# Tests & docs not needed inside the image
+tests/
+**/tests/
+*.md

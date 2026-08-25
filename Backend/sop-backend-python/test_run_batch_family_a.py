@@ -68,7 +68,8 @@ def main():
     for case in FACT_SHEETS:
         print(f"\n{'='*60}\nRunning: {case['label']}\n{'='*60}")
         try:
-            result = generate("australia", "sop", case["data"])
+            import asyncio
+            result = asyncio.run(generate("australia", "sop", case["data"]))
             results.append((case["label"], result))
             print(f"Score: {result['critic_score']}/100 | Edited: {result['edited']} | "
                   f"Residual flags: {result['residual_flags']} | "
