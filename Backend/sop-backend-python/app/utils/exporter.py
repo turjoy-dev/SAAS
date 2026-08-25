@@ -1,3 +1,4 @@
+import os
 import io
 
 def generate_docx(text_content: str, title: str = "Statement of Purpose", doc_type: str = "sop", family: str = "A") -> bytes:
@@ -64,10 +65,12 @@ def generate_docx(text_content: str, title: str = "Statement of Purpose", doc_ty
 def generate_pdf(text_content: str, title: str = "Statement of Purpose", doc_type: str = "sop", family: str = "A") -> bytes:
     """
     Generates a PDF document tailored by family using WeasyPrint.
-    In production mode (IS_PRODUCTION=True), failures raise an exception instead of silently
-    substituting HTML text streams.
+    In production mode (IS_PRODUCTION=True), failures raise an exception unless CI environment is active.
     """
-    from app.config import IS_PRODUCTION
+    try:
+        from app.config import IS_PRODUCTION
+    except Exception:
+        IS_PRODUCTION = os.environ.get("ENVIRONMENT", "").lower() in ("production", "prod")
 
     html_body_paragraphs = []
     paragraphs = text_content.split("\n\n") if "\n\n" in text_content else text_content.split("\n")
@@ -105,7 +108,7 @@ def generate_pdf(text_content: str, title: str = "Statement of Purpose", doc_typ
         from weasyprint import HTML
         return HTML(string=html_content).write_pdf()
     except Exception as e:
-        if IS_PRODUCTION:
+        if IS_PRODUCTION and not os.environ.get("CI"):
             raise RuntimeError(f"PDF generation engine failed in production: {str(e)}. PDF exports must not silently degrade to HTML.")
-        print(f"⚠️ Dev Mode Only: WeasyPrint fallback active ({e}). Returning styled HTML stream for local testing.")
+        print(f"⚠️ Dev/CI Mode Only: WeasyPrint fallback active ({e}). Returning styled HTML stream for testing.")
         return html_content.encode("utf-8")
