@@ -1,0 +1,841 @@
+import json
+import datetime
+import io
+
+from django.core.management import call_command
+from django.test import TestCase as DjangoTestCase, override_settings
+from unittest import TestCase as RegularTestCase
+from unittest.mock import patch
+from django.contrib.auth import get_user_model
+from django.conf import settings
+from django.utils import timezone
+
+from bugsink.app_settings import override_settings as override_bugsink_settings
+from bugsink.test_utils import TransactionTestCase25251 as TransactionTestCase
+from projects.models import Project, ProjectMembership
+from issues.factories import get_or_create_issue
+from issues.models import Issue, TurningPoint, TurningPointKind
+
+from .models import InstallationEventCountsPerHour, IssueEventCountsPerHour, ProjectEventCountsPerHour, Event
+from .factories import create_event
+from .retention import (
+    eviction_target, should_evict, evict_for_max_events, get_epoch_bounds_with_irrelevance, filter_for_work)
+from .sparklines import (
+    get_issue_event_sparkline, get_issue_list_event_sparklines, get_sparkline_range, get_y_labels)
+from .usage import EVENT_COUNTS_PER_HOUR_MAX_AGE, hour_bucket, record_event_counts
+from .utils import annotate_with_meta, annotate_var_with_meta
+from tags.models import EventTag, store_tags
+from tags.search import search_events
+
+User = get_user_model()
+
+
+class ViewTests(TransactionTestCase):
+    # we start with minimal "does this show something and not fully crash" tests and will expand from there.
+
+    def setUp(self):
+        super().setUp()
+        self.user = User.objects.create_user(username='test', password='test')
+        self.project = Project.objects.create()
+        ProjectMembership.objects.create(project=self.project, user=self.user)
+        self.issue, _ = get_or_create_issue(project=self.project)
+        self.event = create_event(self.project, self.issue)
+        self.client.force_login(self.user)
+
+    def test_event_download(self):
+        response = self.client.get(f"/events/event/{self.event.pk}/download/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/json')
+        self.assertTrue("platform" in response.json())
+
+    def test_event_raw(self):
+        response = self.client.get(f"/events/event/{self.event.pk}/raw/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/json')
+        self.assertTrue("platform" in response.json())
+
+    def test_event_plaintext(self):
+        response = self.client.get(f"/events/event/{self.event.pk}/plain/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/plain')
+
+    def test_event_views_forbid_events_from_other_projects(self):
+        other_project = Project.objects.create(name="other")
+        other_issue, _ = get_or_create_issue(project=other_project)
+        other_event = create_event(other_project, other_issue)
+
+        for suffix in ["download/", "raw/", "plain/", "md/"]:
+            with self.subTest(suffix=suffix):
+                response = self.client.get(f"/events/event/{other_event.pk}/{suffix}")
+                self.assertEqual(response.status_code, 403)
+
+
+class TimeZoneTestCase(DjangoTestCase):
+    """This class contains some tests that formalize my understanding of how Django works; they are not strictly tests
+    of bugsink code.
+
+    We put this in events/tests.py because that's a place where we use Django's TestCase, and we want to test in that
+    context, as well as the one of Event models.
+    """
+
+    def test_datetimes_are_in_utc_when_retrieved_from_the_database_with_default_conf(self):
+        # check our default (test) conf
+        self.assertEqual("Europe/Amsterdam", settings.TIME_ZONE)
+
+        # save an event in the database; it will be saved in UTC (because that's what Django does)
+        e = create_event()
+
+        # we activate a timezone that is not UTC to ensure our tests run even when we're in a different timezone
+        with timezone.override('America/Chicago'):
+            self.assertEqual(datetime.timezone.utc, e.timestamp.tzinfo)
+
+    def test_datetimes_are_in_utc_when_retrieved_from_the_database_no_matter_the_active_timezone_when_creating(self):
+        with timezone.override('America/Chicago'):
+            # save an event in the database; it will be saved in UTC (because that's what Django does); even when a
+            # different timezone is active
+            e = create_event()
+            self.assertEqual(datetime.timezone.utc, e.timestamp.tzinfo)
+
+
+class EventUsageTestCase(DjangoTestCase):
+    def test_record_event_counts(self):
+        project = Project.objects.create()
+        issue, _ = get_or_create_issue(project=project)
+        first_hour = datetime.datetime(2026, 6, 14, 12, 34, tzinfo=datetime.timezone.utc)
+        next_hour = datetime.datetime(2026, 6, 14, 13, 1, tzinfo=datetime.timezone.utc)
+
+        record_event_counts(project, issue, first_hour, 1)
+        record_event_counts(project, issue, first_hour, 2)
+        record_event_counts(project, issue, next_hour, 3)
+
+        self.assertEqual(2, InstallationEventCountsPerHour.objects.get(bucket=hour_bucket(first_hour)).count)
+        self.assertEqual(1, InstallationEventCountsPerHour.objects.get(bucket=hour_bucket(next_hour)).count)
+        self.assertEqual(
+            2,
+            ProjectEventCountsPerHour.objects.get(project=project, bucket=hour_bucket(first_hour)).count,
+        )
+        issue_bucket = IssueEventCountsPerHour.objects.get(issue=issue, bucket=hour_bucket(first_hour))
+        self.assertEqual(2, issue_bucket.count)
+        self.assertEqual(2, issue_bucket.digest_order)
+
+    def test_record_event_counts_cleans_up_old_buckets(self):
+        project = Project.objects.create(name="usage cleanup")
+        issue, _ = get_or_create_issue(project=project)
+        other_project = Project.objects.create(name="usage cleanup other")
+        other_issue, _ = get_or_create_issue(project=other_project)
+        new_hour = datetime.datetime(2026, 6, 14, 12, 34, tzinfo=datetime.timezone.utc)
+        old_bucket = hour_bucket(new_hour - EVENT_COUNTS_PER_HOUR_MAX_AGE - datetime.timedelta(hours=1))
+        recent_bucket = hour_bucket(new_hour - EVENT_COUNTS_PER_HOUR_MAX_AGE + datetime.timedelta(hours=1))
+
+        InstallationEventCountsPerHour.objects.create(bucket=old_bucket, count=1)
+        InstallationEventCountsPerHour.objects.create(bucket=recent_bucket, count=1)
+        ProjectEventCountsPerHour.objects.create(project=other_project, bucket=old_bucket, count=1)
+        ProjectEventCountsPerHour.objects.create(project=project, bucket=recent_bucket, count=1)
+        IssueEventCountsPerHour.objects.create(project=other_project, issue=other_issue, bucket=old_bucket, count=1)
+        IssueEventCountsPerHour.objects.create(project=project, issue=issue, bucket=recent_bucket, count=1)
+
+        record_event_counts(project, issue, new_hour, 1)
+
+        self.assertFalse(InstallationEventCountsPerHour.objects.filter(bucket=old_bucket).exists())
+        self.assertFalse(ProjectEventCountsPerHour.objects.filter(bucket=old_bucket).exists())
+        self.assertFalse(IssueEventCountsPerHour.objects.filter(bucket=old_bucket).exists())
+        self.assertTrue(InstallationEventCountsPerHour.objects.filter(bucket=recent_bucket).exists())
+        self.assertTrue(ProjectEventCountsPerHour.objects.filter(bucket=recent_bucket).exists())
+        self.assertTrue(IssueEventCountsPerHour.objects.filter(bucket=recent_bucket).exists())
+
+
+class EventSparklineTestCase(DjangoTestCase):
+    def test_y_labels_respect_max_labels(self):
+        cases_by_max_labels = [
+            # max_labels 0, 1 are somewhat nonsensical anyway (you'd label top & bottom at the least in practice)
+            (0, [
+                (   0, []),
+                ( 1.2, []),
+            ]),
+            (1, [
+                (   0, [   1]),
+                (   1, [   1]),
+                (1410, [1410]),
+            ]),
+
+            # max_labels=2
+            (2, [
+                (   0, [   1,    0]),
+                (   1, [   1,    0]),
+                (   2, [   2,    0]),
+                (  10, [  10,    0]),
+                (  11, [  12,    0]),
+                (  80, [  80,    0]),
+                (  81, [ 100,    0]),
+                (  90, [ 100,    0]),
+                (  91, [ 100,    0]),
+                ( 100, [ 100,    0]),
+                ( 101, [ 120,    0]),
+                (1000, [1000,    0]),
+                (1001, [1200,    0]),
+            ]),
+
+            # max_labels=3
+            (3, [
+                (   0, [   1,    0]),
+                (   1, [   1,    0]),
+                (   2, [   2,    1,    0]),
+                (   3, [   4,    2,    0]),
+                (   8, [   8,    4,    0]),
+                (   9, [  10,    5,    0]),
+                (  10, [  10,    5,    0]),
+                (  11, [  12,    6,    0]),
+                (  18, [  20,   10,    0]),
+                (  21, [  24,   12,    0]),
+                (  24, [  24,   12,    0]),
+                (  25, [  25,    0]),
+                (  50, [  50,   25,    0]),
+                (  75, [  80,   40,    0]),
+                (  80, [  80,   40,    0]),
+                (  81, [ 100,   50,    0]),
+                ( 100, [ 100,   50,    0]),
+                ( 101, [ 120,   60,    0]),
+                ( 800, [ 800,  400,    0]),
+                ( 801, [1000,  500,    0]),
+                (1000, [1000,  500,    0]),
+                (1001, [1200,  600,    0]),
+            ]),
+
+            # max_labels=4
+            (4, [
+                (   0, [   1,    0]),
+                (   1, [   1,    0]),
+                (   2, [   2,    1,    0]),
+                (   3, [   3,    2,    1,    0]),
+                (   4, [   4,    2,    0]),
+                (   8, [   9,    6,    3,    0]),
+                (  10, [  10,    5,    0]),
+                (  11, [  12,    8,    4,    0]),
+                (  25, [  30,   20,   10,    0]),
+                (  38, [  40,   20,    0]),
+                (  50, [  60,   40,   20,    0]),
+                (  80, [  90,   60,   30,    0]),
+                (  81, [  90,   60,   30,    0]),
+                (  91, [ 100,   50,    0]),
+                ( 100, [ 100,   50,    0]),
+                ( 101, [ 120,   80,   40,    0]),
+            ]),
+
+            # max_labels=5
+            (5, [
+                (   0, [   1,    0]),
+                (   1, [   1,    0]),
+                (   4, [   4,    3,    2,    1,    0]),
+                (   5, [   6,    4,    2,    0]),
+                (   8, [   8,    6,    4,    2,    0]),
+                (   9, [   9,    6,    3,    0]),
+                (  10, [  12,    9,    6,    3,    0]),
+                (  11, [  12,    9,    6,    3,    0]),
+                (  25, [  30,   20,   10,    0]),
+                (  38, [  40,   30,   20,   10,    0]),
+                (  48, [  48,   36,   24,   12,    0]),
+                (  50, [  50,   25,    0]),
+                (  80, [  80,   60,   40,   20,    0]),
+                (  81, [ 100,   75,   50,   25,    0]),
+                ( 100, [ 100,   75,   50,   25,    0]),
+            ]),
+
+            # max_labels=10
+            (10, [
+                (   0, [   1,    0]),
+                (   1, [   1,    0]),
+                (   8, [   8,    7,    6,    5,    4,    3,    2,    1,    0]),
+                (   9, [   9,    8,    7,    6,    5,    4,    3,    2,    1,    0]),
+                (  10, [  10,    8,    6,    4,    2,    0]),
+                (  11, [  12,   10,    8,    6,    4,    2,    0]),
+                (  80, [  80,   70,   60,   50,   40,   30,   20,   10,    0]),
+                (  81, [  90,   80,   70,   60,   50,   40,   30,   20,   10,    0]),
+                (  82, [  90,   80,   70,   60,   50,   40,   30,   20,   10,    0]),
+                (  90, [  90,   80,   70,   60,   50,   40,   30,   20,   10,    0]),
+                (  91, [ 100,   80,   60,   40,   20,    0]),
+                ( 100, [ 100,   80,   60,   40,   20,    0]),
+                ( 101, [ 120,  100,   80,   60,   40,   20,    0]),
+                ( 800, [ 800,  700,  600,  500,  400,  300,  200,  100,    0]),
+                ( 900, [ 900,  800,  700,  600,  500,  400,  300,  200,  100,    0]),
+                ( 901, [1000,  800,  600,  400,  200,    0]),
+                (1000, [1000,  800,  600,  400,  200,    0]),
+                (1001, [1200, 1000,  800,  600,  400,  200,    0])
+            ]),
+
+            # max_labels=11
+            (11, [
+                (   0, [   1,    0]),
+                (   1, [   1,    0]),
+                (   5, [   5,    4,    3,    2,    1,    0]),
+                (   8, [   8,    7,    6,    5,    4,    3,    2,    1,    0]),
+                (   9, [   9,    8,    7,    6,    5,    4,    3,    2,    1,    0]),
+                (  10, [  10,    9,    8,    7,    6,    5,    4,    3,    2,    1,    0]),
+                (  11, [  12,   10,    8,    6,    4,    2,    0]),
+                (  48, [  50,   45,   40,   35,   30,   25,   20,   15,   10,    5,    0]),
+                (  50, [  50,   45,   40,   35,   30,   25,   20,   15,   10,    5,    0]),
+                (  75, [  80,   70,   60,   50,   40,   30,   20,   10,    0]),
+                (  80, [  80,   70,   60,   50,   40,   30,   20,   10,    0]),
+                (  81, [ 100,   90,   80,   70,   60,   50,   40,   30,   20,   10,    0]),
+                (  91, [ 100,   90,   80,   70,   60,   50,   40,   30,   20,   10,    0]),
+                ( 100, [ 100,   90,   80,   70,   60,   50,   40,   30,   20,   10,    0]),
+                ( 101, [ 120,  100,   80,   60,   40,   20,    0]),
+                ( 900, [1000,  900,  800,  700,  600,  500,  400,  300,  200,  100,    0]),
+                ( 901, [1000,  900,  800,  700,  600,  500,  400,  300,  200,  100,    0]),
+                (1000, [1000,  900,  800,  700,  600,  500,  400,  300,  200,  100,    0]),
+                (1001, [1200, 1000,  800,  600,  400,  200,    0]),
+            ]),
+
+        ]
+
+        failures = []
+        for max_labels, cases in cases_by_max_labels:
+            for max_value, expected in cases:
+                actual = list(get_y_labels(max_value, max_labels=max_labels))
+                if actual != expected:
+                    failures.append(
+                        "max_labels=%s, max_value=%s: expected %s, got %s" %
+                        (max_labels, max_value, expected, actual))
+
+        if failures:
+            self.fail("%d y-label case(s) failed:\n%s" % (len(failures), "\n".join(failures)))
+
+    @override_settings(TIME_ZONE="America/New_York")
+    def test_sparkline_range_rounds_up_to_current_local_bucket_end(self):
+        now = datetime.datetime(2026, 1, 1, 17, 30, tzinfo=datetime.timezone.utc)
+
+        start, end, interval = get_sparkline_range(now, hour_step=6, days=1)
+
+        self.assertEqual(datetime.datetime(2025, 12, 31, 23, 0, tzinfo=datetime.timezone.utc), start)
+        self.assertEqual(datetime.datetime(2026, 1, 1, 23, 0, tzinfo=datetime.timezone.utc), end)
+        self.assertEqual(datetime.timedelta(hours=6), interval)
+
+    @override_settings(TIME_ZONE="Europe/Amsterdam")
+    def test_issue_event_sparkline_uses_local_day_edges_across_dst(self):
+        project = Project.objects.create(name="sparkline")
+        issue, _ = get_or_create_issue(project=project)
+        now = datetime.datetime(2026, 3, 29, 12, 0, tzinfo=datetime.timezone.utc)
+
+        sparkline = get_issue_event_sparkline(issue.id, now)
+
+        last_day_bucket = sparkline["variants"][0]["event_buckets"][-1]
+        self.assertEqual(datetime.datetime(2026, 3, 28, 23, 0, tzinfo=datetime.timezone.utc),
+                         last_day_bucket["bucket_start"])
+        self.assertEqual(datetime.datetime(2026, 3, 29, 22, 0, tzinfo=datetime.timezone.utc),
+                         last_day_bucket["bucket_end"])
+        self.assertEqual("29 Mar", last_day_bucket["label"])
+
+    def test_issue_list_sparkline_includes_current_open_hour(self):
+        project = Project.objects.create(name="sparkline")
+        issue, _ = get_or_create_issue(project=project)
+        now = datetime.datetime(2026, 5, 18, 13, 30, tzinfo=datetime.timezone.utc)
+        current_hour = hour_bucket(now)
+
+        IssueEventCountsPerHour.objects.create(
+            project=project, issue=issue, bucket=current_hour - datetime.timedelta(hours=24), count=100)
+        IssueEventCountsPerHour.objects.create(
+            project=project, issue=issue, bucket=current_hour - datetime.timedelta(hours=23), count=2)
+        IssueEventCountsPerHour.objects.create(project=project, issue=issue, bucket=current_hour, count=3)
+        IssueEventCountsPerHour.objects.create(
+            project=project, issue=issue, bucket=current_hour + datetime.timedelta(hours=1), count=100)
+
+        sparkline = get_issue_list_event_sparklines([issue.id], now)[issue.id]
+
+        self.assertEqual(24, len(sparkline["event_buckets"]))
+        self.assertEqual(5, sparkline["total"])
+        self.assertEqual(2, sparkline["event_buckets"][0]["count"])
+        self.assertEqual(3, sparkline["event_buckets"][-1]["count"])
+        self.assertEqual(20, sparkline["event_buckets"][0]["pct"])
+        self.assertEqual(30, sparkline["event_buckets"][-1]["pct"])
+        self.assertEqual(
+            "5 events in the past 24h",
+            sparkline["event_buckets"][-1]["title"],
+        )
+
+    def test_issue_event_sparkline_uses_hourly_buckets(self):
+        project = Project.objects.create(name="sparkline")
+        issue, _ = get_or_create_issue(project=project)
+        other_issue, _ = get_or_create_issue(
+            project=project,
+            event_data={"exception": {"values": [{"type": "Other", "value": "Other"}]}},
+        )
+        now = datetime.datetime(2026, 6, 14, 12, 34, tzinfo=datetime.timezone.utc)
+        start, _, _ = get_sparkline_range(now)
+
+        IssueEventCountsPerHour.objects.create(project=project, issue=issue, bucket=start, count=2, digest_order=7)
+        IssueEventCountsPerHour.objects.create(
+            project=project,
+            issue=issue,
+            bucket=start + datetime.timedelta(hours=1),
+            count=3,
+            digest_order=8,
+        )
+        IssueEventCountsPerHour.objects.create(
+            project=project,
+            issue=other_issue,
+            bucket=start,
+            count=99,
+            digest_order=99,
+        )
+
+        sparkline = get_issue_event_sparkline(issue.id, now)
+
+        self.assertEqual(5, sparkline["buckets"][0])
+        self.assertEqual(50, sparkline["bar_data"][0])
+        self.assertEqual(start, sparkline["event_buckets"][0]["bucket_start"])
+        self.assertEqual(start + datetime.timedelta(hours=6), sparkline["event_buckets"][0]["bucket_end"])
+        self.assertEqual("17 May 18:00 - 18 May 00:00", sparkline["event_buckets"][0]["label"])
+        self.assertEqual(5, sparkline["event_buckets"][0]["count"])
+        self.assertEqual(8, sparkline["event_buckets"][0]["digest_order"])
+        self.assertEqual(50, sparkline["event_buckets"][0]["pct"])
+        self.assertEqual(0, sparkline["event_buckets"][1]["count"])
+        self.assertEqual(0, sparkline["event_buckets"][1]["pct"])
+        self.assertEqual([24, 12, 6], [variant["interval_hours"] for variant in sparkline["variants"]])
+        self.assertEqual("18 May", sparkline["variants"][0]["event_buckets"][0]["label"])
+        self.assertFalse(any(bucket["contains_active_event"] for bucket in sparkline["event_buckets"]))
+
+        sparkline = get_issue_event_sparkline(issue.id, now, start + datetime.timedelta(hours=1))
+
+        self.assertFalse(any(bucket["contains_active_event"] for bucket in sparkline["variants"][0]["event_buckets"]))
+        self.assertTrue(sparkline["event_buckets"][0]["contains_active_event"])
+
+    def test_issue_event_sparkline_search_overlay_uses_matching_retained_events(self):
+        project = Project.objects.create(name="sparkline")
+        issue, _ = get_or_create_issue(project=project)
+        now = datetime.datetime(2026, 6, 14, 12, 34, tzinfo=datetime.timezone.utc)
+        start, _, _ = get_sparkline_range(now)
+
+        first_event = create_event(project, issue, timestamp=start + datetime.timedelta(hours=1))
+        second_event = create_event(project, issue, timestamp=start + datetime.timedelta(hours=2))
+        third_event = create_event(project, issue, timestamp=start + datetime.timedelta(hours=7))
+        for event in (first_event, second_event, third_event):
+            record_event_counts(project, issue, event.digested_at, event.digest_order)
+
+        store_tags(second_event, issue, {"foo": "bar"})
+        store_tags(third_event, issue, {"foo": "bar"})
+
+        sparkline = get_issue_event_sparkline(
+            issue.id,
+            now,
+            matching_event_qs=search_events(project, issue, "foo:bar"),
+        )
+
+        first_bucket = sparkline["event_buckets"][0]
+        second_bucket = sparkline["event_buckets"][1]
+        self.assertEqual(2, first_bucket["count"])
+        self.assertEqual(1, first_bucket["matching_count"])
+        self.assertEqual(2, first_bucket["digest_order"])
+        self.assertEqual(1, first_bucket["click_count"])
+        self.assertEqual(10, first_bucket["matching_pct"])
+        self.assertEqual("17 May 18:00 - 18 May 00:00: 1 matching event, 2 events total", first_bucket["title"])
+
+        self.assertEqual(1, second_bucket["count"])
+        self.assertEqual(1, second_bucket["matching_count"])
+        self.assertEqual(3, second_bucket["digest_order"])
+
+
+class RetentionUtilsTestCase(RegularTestCase):
+    def test_eviction_target(self):
+        # over-target with low max: evict 5%
+        self.assertEqual(5, eviction_target(100, 101))
+
+        # over-target with high max: evict 500
+        self.assertEqual(500, eviction_target(10_000, 10_001))
+        self.assertEqual(500, eviction_target(100_000, 100_001))
+
+        # adapted target, i.e. over target but by (much) more than 1: evict 500
+        # (we chose this over the alternative of evicting all of the excess at once, because the latter could very well
+        # lead to timeouts. this has the slightly surprising effect that eviction happens only in 500-event steps, and
+        # because we don't trigger such steps unless new events come in, it could take a while to get back under target.
+        # if this turns out to be a problem, we should just do that triggering ourselves rather than per-event).
+        self.assertEqual(500, eviction_target(100, 10_001))
+
+        # ridiciulously low max: evict 1
+        self.assertEqual(1, eviction_target(6, 7))
+
+        # Note that we have no special-casing for under-target (yet); not needed because should_evict (which does a
+        # simple comparison) is always called first.
+        # self.assertEqual(0, eviction_target(10_000, 9_999))
+
+
+class RetentionTestCase(DjangoTestCase):
+
+    def test_epoch_bounds_with_irrelevance_empty_project(self):
+        project = Project.objects.create()
+        current_timestamp = datetime.datetime(2022, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+
+        bounds = get_epoch_bounds_with_irrelevance(project, current_timestamp)
+
+        self.assertEqual([((None, None), 0)], bounds)
+
+    def test_epoch_bounds_with_irrelevance_single_current_event(self):
+        project = Project.objects.create()
+        current_timestamp = datetime.datetime(2022, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+        create_event(project, timestamp=current_timestamp)
+
+        bounds = get_epoch_bounds_with_irrelevance(project, current_timestamp)
+
+        # all events are in the same (current) epoch, i.e. no explicit bounds, and no age-based irrelevance
+        self.assertEqual([((None, None), 0)], bounds)
+
+    def test_epoch_bounds_with_irrelevance_single_hour_old_event(self):
+        project = Project.objects.create()
+        current_timestamp = datetime.datetime(2022, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+        create_event(project, timestamp=current_timestamp - datetime.timedelta(hours=1))
+
+        bounds = get_epoch_bounds_with_irrelevance(project, current_timestamp)
+
+        # with an observed event in the previous epoch, we get explicit bounds.
+        self.assertEqual([
+            ((455832, None), 0),  # present-till-future; no age-based irrelevance
+            ((None, 455832), 1)  # all the past-till-present; age-based irrelevance 1
+        ], bounds)
+
+    def test_epoch_bounds_with_irrelevance_day_old_event(self):
+        project = Project.objects.create()
+        current_timestamp = datetime.datetime(2022, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+        create_event(project, timestamp=current_timestamp - datetime.timedelta(days=1))
+
+        bounds = get_epoch_bounds_with_irrelevance(project, current_timestamp)
+
+        self.assertEqual([
+            ((455832, None),   0),
+            ((455829, 455832), 1),
+            ((455817, 455829), 2),
+            ((None,   455817), 3)],
+            bounds)
+
+    def test_retention_simple_case(self):
+        # this test contains just the key bits of ingest/views.py such that we can test `evict_for_max_events`
+        project_stored_event_count = 0
+        digested_at = timezone.now()
+
+        self.project = Project.objects.create(retention_max_event_count=5)
+        self.issue, _ = get_or_create_issue(project=self.project)
+
+        for digest_order in range(1, 7):
+            project_stored_event_count += 1  # +1 pre-create, as in the ingestion view
+            create_event(self.project, self.issue, timestamp=digested_at)
+
+            # in the real code calls to `evict_for_max_events` depend on `should_evict`; here we just test that both
+            # work correctly for each step in the loop. (a more complete test, and there's no perfermance consideration)
+
+            expected_should_evict = digest_order > 5
+
+            evicted = evict_for_max_events(self.project, digested_at, project_stored_event_count)
+
+            self.assertEqual(1 if expected_should_evict else 0, evicted.total)
+            self.assertEqual(expected_should_evict, should_evict(self.project, digested_at, project_stored_event_count))
+
+            project_stored_event_count -= evicted.total
+
+    def test_retention_multiple_epochs(self):
+        # this test contains just the key bits of ingest/views.py such that we can test `evict_for_max_events`;
+        # at the same time, we diverge a bit from what would happen "in reality", such that we can make a test that's
+        # both interesting (hits enough edge cases) and still understandable. In particular, we first load up on events
+        # (over max) and then repeatedly evict (with small batch sizes) so we can see what's happening.
+        project_stored_event_count = 0
+
+        self.project = Project.objects.create(retention_max_event_count=999)
+        self.issue, _ = get_or_create_issue(project=self.project)
+
+        current_timestamp = datetime.datetime(2022, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+
+        # the irrelevances here are chosen to be somewhat similar to reality as well as triggering interesting code
+        # paths, in particular the "high irrelevances for recent epochs, non-consecutive" makes it so that you'll get
+        # quite a few deletions where nothing happens (a branch that we also want to test).
+        data = reversed(list(
+            (i + 1, irrelevance, current_timestamp - datetime.timedelta(hours=i))
+            for i, irrelevance in enumerate([0, 1, 2, 0, 1, 2, 0, 1, 4, 8])))
+
+        for digest_order, irrelevance, digested_at in data:
+            project_stored_event_count += 1  # +1 pre-create, as in the ingestion view
+            event = create_event(self.project, self.issue, timestamp=digested_at)
+            event.irrelevance_for_retention = irrelevance
+
+            # totally unrealistic scenario of "everything is never_evict" is great for testing: it just means the
+            # eviction framework is tested in "include_never_evict" mode which is "normal mode but more cases", i.e. it
+            # tests the regular flow but also the special one.
+            event.never_evict = True
+            event.save()
+
+        while project_stored_event_count > 1:
+            # Just manually set the target a bit lower each time. We take batches of 2 because that's small enough to
+            # have many batches, but big enough that a single batch will trigger multiple branches in our codebase.
+            self.project.retention_max_event_count = project_stored_event_count - 2
+            self.project.save()
+
+            evicted = evict_for_max_events(self.project, current_timestamp, project_stored_event_count)
+            self.assertEqual(2, evicted.total)
+
+            project_stored_event_count -= evicted.total
+
+    def test_filter_for_work(self):
+        # this test is mostly to help clarify how filter_for_work actually works
+
+        epoch_bounds = [((455832, None), 0), ((455829, 455832), 1), ((None, 455829), 2)]
+        pairs = [(0, 0), (1, 2), (2, 2)]
+        max_total_irrelevance = 3
+
+        # only the oldest epoch has a total irrelevance exceeding the max; return only that:
+        self.assertEqual([((None, 455829), 2)], list(filter_for_work(epoch_bounds, pairs, max_total_irrelevance)))
+
+
+class AnnotateWithMetaTestCase(RegularTestCase):
+    def test_annotate_with_meta(self):
+        parsed_data = json.loads(EXAMPLE_META)
+
+        exception_values = parsed_data["exception"]["values"]
+        frames = exception_values[0]["stacktrace"]["frames"]
+        meta_frames = parsed_data["_meta"]["exception"]["values"]["0"]["stacktrace"]["frames"]
+
+        annotate_with_meta(exception_values, parsed_data["_meta"]["exception"]["values"])
+
+        # length of the vars in a frame
+        self.assertTrue(hasattr(frames[0]["vars"], "incomplete"))
+        self.assertEqual(
+            meta_frames["0"]["vars"][""]["len"] - len(frames[0]["vars"]),
+            frames[0]["vars"].incomplete)
+
+        # a var itself
+        self.assertTrue(hasattr(frames[1]["vars"]["installed_apps"], "incomplete"))
+        self.assertEqual(
+            meta_frames["1"]["vars"]["installed_apps"][""]["len"] - len(frames[1]["vars"]["installed_apps"]),
+            frames[1]["vars"]["installed_apps"].incomplete)
+
+        # a var which is a list, containing a dict
+        self.assertTrue(hasattr(frames[2]["vars"]["args"][1]["__builtins__"], "incomplete"))
+        self.assertEqual(
+            (meta_frames["2"]["vars"]["args"]["1"]["__builtins__"][""]["len"] -
+             len(frames[2]["vars"]["args"][1]["__builtins__"])),
+            frames[2]["vars"]["args"][1]["__builtins__"].incomplete)
+
+    def test_annotate_var_with_meta_when_meta_not_in_var(self):
+        # something I saw crashing in the wild and want to be robust for"
+        # (I didn't see the equivalent case for lists; the code has been made robust for both but I don't want to
+        # suggest something is "seen in the wild" when I actually haven't seen it so 1 test only
+        result = annotate_var_with_meta(
+            {},  # note: no "auth"
+            {'auth': {'': {'rem': [['!config', 's']]}}},
+        )
+
+        # alternative here would be to interpret the "!config" instruction and display it as "[Filtered]" but I'd like
+        # to have someone on-hand who tells me exactly what happened SDK-side before I make that step.
+        self.assertEqual({}, result)
+
+
+class DeleteOldEventsCommandTestCase(TransactionTestCase):
+    # Auto-generated tests; not carefully reviewed but "at least this touches some code paths"
+
+    def setUp(self):
+        super().setUp()
+        self.project = Project.objects.create(name="Delete Old Events Project")
+        self.issue, _ = get_or_create_issue(project=self.project)
+
+    def _run_command(self, **kwargs):
+        stdout = io.StringIO()
+        call_command("delete_old_events", stdout=stdout, **kwargs)
+        return stdout.getvalue()
+
+    def _sync_counts(self):
+        self.project.stored_event_count = Event.objects.filter(project=self.project).count()
+        self.project.save(update_fields=["stored_event_count"])
+
+        for issue in Issue.objects.filter(project=self.project):
+            issue.stored_event_count = Event.objects.filter(issue=issue).count()
+            issue.save(update_fields=["stored_event_count"])
+
+    def test_command_deletes_events_older_than_cutoff_and_keeps_newer(self):
+        now = timezone.now()
+        old_event = create_event(self.project, self.issue, timestamp=now - datetime.timedelta(days=11))
+        new_event = create_event(self.project, self.issue, timestamp=now - datetime.timedelta(days=9))
+        self._sync_counts()
+
+        self._run_command(days=10)
+
+        self.assertFalse(Event.objects.filter(pk=old_event.pk).exists())
+        self.assertTrue(Event.objects.filter(pk=new_event.pk).exists())
+        self.issue.refresh_from_db()
+        self.project.refresh_from_db()
+        self.assertEqual(1, self.issue.stored_event_count)
+        self.assertEqual(1, self.project.stored_event_count)
+
+    def test_command_uses_digested_at(self):
+        now = timezone.now()
+        old_digested = create_event(self.project, self.issue, timestamp=now - datetime.timedelta(days=11))
+        old_digested.ingested_at = now - datetime.timedelta(days=1)
+        old_digested.save(update_fields=["ingested_at"])
+
+        new_digested = create_event(self.project, self.issue, timestamp=now - datetime.timedelta(days=9))
+        new_digested.ingested_at = now - datetime.timedelta(days=20)
+        new_digested.save(update_fields=["ingested_at"])
+        self._sync_counts()
+
+        self._run_command(days=10)
+
+        self.assertFalse(Event.objects.filter(pk=old_digested.pk).exists())
+        self.assertTrue(Event.objects.filter(pk=new_digested.pk).exists())
+
+    def test_command_ignores_never_evict_and_detaches_turning_points(self):
+        old_event = create_event(self.project, self.issue, timestamp=timezone.now() - datetime.timedelta(days=11))
+        old_event.never_evict = True
+        old_event.save(update_fields=["never_evict"])
+        turning_point = TurningPoint.objects.create(
+            project=self.project,
+            issue=self.issue,
+            triggering_event=old_event,
+            timestamp=old_event.ingested_at,
+            kind=TurningPointKind.FIRST_SEEN,
+        )
+        self._sync_counts()
+
+        self._run_command(days=10)
+
+        self.assertFalse(Event.objects.filter(pk=old_event.pk).exists())
+        turning_point.refresh_from_db()
+        self.assertIsNone(turning_point.triggering_event)
+        self.issue.refresh_from_db()
+        self.project.refresh_from_db()
+        self.assertEqual(0, self.issue.stored_event_count)
+        self.assertEqual(0, self.project.stored_event_count)
+
+    def test_command_triggers_storage_cleanup_and_updates_counts(self):
+        old_event = create_event(self.project, self.issue, timestamp=timezone.now() - datetime.timedelta(days=11))
+        old_event.storage_backend = "dummy-storage"
+        old_event.save(update_fields=["storage_backend"])
+        store_tags(old_event, self.issue, {"foo": "bar"})
+
+        other_issue, _ = get_or_create_issue(
+            project=self.project,
+            event_data={"exception": {"values": [{"type": "Other"}]}},
+        )
+        kept_event = create_event(self.project, other_issue, timestamp=timezone.now() - datetime.timedelta(days=1))
+        self._sync_counts()
+
+        with patch("events.retention._cleanup_events_on_storage") as cleanup:
+            self._run_command(days=10)
+
+        cleanup.assert_called_once_with([(old_event.id, "dummy-storage")])
+        self.assertFalse(Event.objects.filter(pk=old_event.pk).exists())
+        self.assertTrue(Event.objects.filter(pk=kept_event.pk).exists())
+        self.assertEqual(0, EventTag.objects.filter(event_id=old_event.id).count())
+
+        self.issue.refresh_from_db()
+        other_issue.refresh_from_db()
+        self.project.refresh_from_db()
+        self.assertEqual(0, self.issue.stored_event_count)
+        self.assertEqual(1, other_issue.stored_event_count)
+        self.assertEqual(1, self.project.stored_event_count)
+
+    def test_command_uses_configured_max_event_age_days(self):
+        old_event = create_event(self.project, self.issue, timestamp=timezone.now() - datetime.timedelta(days=11))
+        self._sync_counts()
+
+        with override_bugsink_settings(MAX_EVENT_AGE_DAYS=10):
+            self._run_command()
+
+        self.assertFalse(Event.objects.filter(pk=old_event.pk).exists())
+
+    def test_command_completes_synchronously_without_reenqueue(self):
+        old_event = create_event(self.project, self.issue, timestamp=timezone.now() - datetime.timedelta(days=11))
+        self._sync_counts()
+
+        with patch("events.tasks.delete_by_age_until_under_retention_max.delay") as delay:
+            self._run_command(days=10)
+
+        delay.assert_not_called()
+        self.assertFalse(Event.objects.filter(pk=old_event.pk).exists())
+
+EXAMPLE_META = r'''{
+  "exception": {
+    "values": [
+      {
+        "stacktrace": {
+          "frames": [
+            {
+              "vars": {
+                "os": "<module 'os' from '/usr/lib/python3.10/os.py'>"
+              }
+            },
+            {
+              "vars": {
+                "self": "<django.apps.registry.Apps object at 0x7f65d4bdfeb0>",
+                "installed_apps": [
+                  "'projects'"
+                ],
+                "csrf_token": "[Filtered]"
+              }
+            },
+            {
+              "vars": {
+                "f": "<built-in function exec>",
+                "args": [
+                  "<code object <module> at 0x7f65d33e92c0, file \"...\", line 1>",
+                  {
+                    "__name__": "'releases.models'",
+                    "__builtins__": {
+                      "any": "<built-in function any>"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "_meta": {
+    "exception": {
+      "values": {
+        "0": {
+          "stacktrace": {
+            "frames": {
+              "0": {
+                "vars": {
+                  "": {
+                    "len": 12
+                  }
+                }
+              },
+              "1": {
+                "vars": {
+                  "installed_apps": {
+                    "": {
+                      "len": 16
+                    }
+                  },
+                  "csrf_token": {
+                    "": {
+                      "rem": [
+                        [
+                          "!config",
+                          "s"
+                        ]
+                      ]
+                    }
+                  }
+                }
+              },
+              "2": {
+                "vars": {
+                  "args": {
+                    "1": {
+                      "__builtins__": {
+                        "": {
+                          "len": 155
+                        }
+                      },
+                      "": {
+                        "len": 13
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}'''  # extracted from a real event; limited to the parts that are needed for annotate_with_meta
