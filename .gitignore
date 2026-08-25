@@ -8,10 +8,6 @@ build/
 .env
 .env.*
 
-# Agent Skills & Internal Configs
-.agents/
-.gemini/
-
 # Python
 __pycache__/
 **/__pycache__/
