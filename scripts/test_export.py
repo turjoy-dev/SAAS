@@ -1,11 +1,13 @@
 import os
 import sys
 
-# Add backend directory to path so we can import app and other modules
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "Backend", "sop-backend-python"))
-
-# Enforce production mode so WeasyPrint does not silently degrade to HTML text
+# 1. Enforce production mode BEFORE importing app.config
 os.environ["ENVIRONMENT"] = "production"
+
+# 2. Add backend directory to sys.path
+backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Backend", "sop-backend-python"))
+if backend_path not in sys.path:
+    sys.path.insert(0, backend_path)
 
 from app.utils.exporter import generate_pdf, generate_docx
 
@@ -17,11 +19,10 @@ def test_pdf():
     assert pdf_bytes is not None, "PDF bytes are None"
     assert len(pdf_bytes) > 0, "PDF bytes are empty"
     
-    # Assert PDF file signature (%PDF-)
     signature = pdf_bytes[:5]
     print(f"PDF Signature: {signature}")
-    assert signature == b"%PDF-", f"Invalid PDF signature: {signature}"
-    print("PDF_EXPORT_OK")
+    assert signature == b"%PDF-", f"Invalid PDF signature: {signature}. Got: {signature}"
+    print("✅ PDF_EXPORT_OK")
 
 def test_docx():
     print("Testing generate_docx...")
@@ -31,17 +32,16 @@ def test_docx():
     assert docx_bytes is not None, "docx bytes are None"
     assert len(docx_bytes) > 0, "docx bytes are empty"
     
-    # Assert zip/docx file signature (PK..)
     signature = docx_bytes[:2]
     print(f"docx Signature: {signature}")
     assert signature == b"PK", f"Invalid docx signature: {signature}"
-    print("DOCX_EXPORT_OK")
+    print("✅ DOCX_EXPORT_OK")
 
 if __name__ == "__main__":
     try:
         test_pdf()
         test_docx()
-        print("\nAll export tests passed successfully.")
+        print("\n🎉 All export tests passed successfully.")
     except Exception as e:
-        print(f"ERROR: Export test failed: {e}", file=sys.stderr)
+        print(f"❌ ERROR: Export test failed: {e}", file=sys.stderr)
         sys.exit(1)
